@@ -30,6 +30,10 @@ class PatientCreate(BaseModel):
 
 # Patient Update Schema (patient can update own info)
 class PatientUpdate(BaseModel):
+    # User fields
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+    # Patient fields
     date_of_birth: Optional[date] = None
     gender: Optional[GenderEnum] = None
     blood_type: Optional[str] = Field(None, max_length=5)
@@ -40,8 +44,17 @@ class PatientUpdate(BaseModel):
     current_medications: Optional[str] = Field(None, max_length=1000)
 
 
-# Admin Update Schema (admin can update medical status)
+# Admin Update Schema (admin can update all patient fields including status)
 class PatientAdminUpdate(BaseModel):
+    # User fields
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+    # Patient fields
+    date_of_birth: Optional[date] = None
+    gender: Optional[GenderEnum] = None
+    blood_type: Optional[str] = Field(None, max_length=5)
+    height: Optional[float] = Field(None, gt=0)
+    weight: Optional[float] = Field(None, gt=0)
     status: Optional[StatusEnum] = None
     medical_history: Optional[str] = Field(None, max_length=2000)
     allergies: Optional[str] = Field(None, max_length=500)

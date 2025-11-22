@@ -33,6 +33,13 @@ const RegisterPage = () => {
     else if (!/\S+@gmail\.com$/.test(formData.email)) newErrors.email = 'Only Gmail addresses (@gmail.com) are allowed';
     else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(formData.email)) newErrors.email = 'Invalid Gmail format';
     if (!formData.phone) newErrors.phone = 'Phone number is required';
+    else {
+      // Validate Moroccan phone number format
+      const moroccanPhoneRegex = /^(\+212|0)[5-7]\d{8}$/;
+      if (!moroccanPhoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        newErrors.phone = 'Invalid Moroccan phone number. Format: +212XXXXXXXXX or 0XXXXXXXXX (must start with 5, 6, or 7)';
+      }
+    }
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
@@ -94,16 +101,19 @@ const RegisterPage = () => {
               required
             />
 
-            <Input
-              label="Phone Number"
-              type="tel"
-              placeholder="+1 234 567 890"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              error={errors.phone}
-              icon={<Phone size={20} />}
-              required
-            />
+            <div>
+              <Input
+                label="Phone Number (Moroccan)"
+                type="tel"
+                placeholder="+212XXXXXXXXX or 0XXXXXXXXX"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                error={errors.phone}
+                icon={<Phone size={20} />}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">Format: +212 followed by 9 digits starting with 5, 6, or 7</p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input

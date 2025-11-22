@@ -108,6 +108,15 @@ const App = () => {
             </ProtectedRoute>
           } />
 
+          {/* Patient's own profile route - MUST come before /patients/:id */}
+          <Route path="/patients/me" element={
+            <ProtectedRoute>
+              <PatientRoute>
+                <PatientDetailsPage />
+              </PatientRoute>
+            </ProtectedRoute>
+          } />
+
           <Route path="/patients/:id" element={
             <ProtectedRoute>
               <AdminRoute>

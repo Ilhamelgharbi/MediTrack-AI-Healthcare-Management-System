@@ -37,15 +37,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ? [
         { path: '/', icon: Home, label: 'Dashboard' },
         { path: '/patients', icon: Users, label: 'Patients' },
-        { path: '/chat', icon: MessageSquare, label: 'AI Assistant' },
-        { path: '/profile', icon: User, label: 'Profile' }
+        { path: '/chat', icon: MessageSquare, label: 'AI Assistant' }
       ]
     : [
         { path: '/', icon: Home, label: 'Dashboard' },
+        { path: '/patients/me', icon: User, label: 'My Health Profile' },
         { path: '/medications', icon: Pill, label: 'Medications' },
         { path: '/reminders', icon: Clock, label: 'Reminders' },
-        { path: '/chat', icon: MessageSquare, label: 'AI Assistant' },
-        { path: '/profile', icon: User, label: 'My Profile' }
+        { path: '/chat', icon: MessageSquare, label: 'AI Assistant' }
       ];
 
   return (

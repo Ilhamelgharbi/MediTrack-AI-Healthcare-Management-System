@@ -68,8 +68,21 @@ class PatientService:
         """Update patient information (by patient themselves)"""
         patient = PatientService.get_patient_by_id(db, patient_id)
         
-        for field, value in patient_data.dict(exclude_unset=True).items():
+        update_dict = patient_data.dict(exclude_unset=True)
+        
+        # Separate user fields from patient fields
+        user_fields = ['email', 'phone']
+        patient_fields = {k: v for k, v in update_dict.items() if k not in user_fields}
+        user_updates = {k: v for k, v in update_dict.items() if k in user_fields}
+        
+        # Update patient fields
+        for field, value in patient_fields.items():
             setattr(patient, field, value)
+        
+        # Update user fields
+        if user_updates and patient.user:
+            for field, value in user_updates.items():
+                setattr(patient.user, field, value)
         
         db.commit()
         db.refresh(patient)
@@ -81,8 +94,21 @@ class PatientService:
         """Update patient information (by admin)"""
         patient = PatientService.get_patient_by_id(db, patient_id)
         
-        for field, value in admin_data.dict(exclude_unset=True).items():
+        update_dict = admin_data.dict(exclude_unset=True)
+        
+        # Separate user fields from patient fields
+        user_fields = ['email', 'phone']
+        patient_fields = {k: v for k, v in update_dict.items() if k not in user_fields}
+        user_updates = {k: v for k, v in update_dict.items() if k in user_fields}
+        
+        # Update patient fields
+        for field, value in patient_fields.items():
             setattr(patient, field, value)
+        
+        # Update user fields
+        if user_updates and patient.user:
+            for field, value in user_updates.items():
+                setattr(patient.user, field, value)
         
         db.commit()
         db.refresh(patient)

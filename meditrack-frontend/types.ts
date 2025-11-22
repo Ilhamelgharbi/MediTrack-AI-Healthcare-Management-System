@@ -2,9 +2,21 @@ import React from 'react';
 
 export type UserRole = 'patient' | 'admin';
 
+export interface UserBasicInfo {
+  id: number;
+  full_name: string;
+  email: string;
+  phone?: string;
+  role: string;
+}
+
 export interface PatientProfile {
   id: number;
   user_id: number;
+  // User fields (for updates)
+  email?: string;
+  phone?: string;
+  // Patient fields
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other';
   blood_type?: string;
@@ -17,6 +29,9 @@ export interface PatientProfile {
   assigned_admin_id?: number;
   created_at: string;
   updated_at?: string;
+  user?: UserBasicInfo;
+  adherence?: number; // percentage 0-100
+  active_meds?: string[]; // array of active medication names
 }
 
 export interface User {

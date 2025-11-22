@@ -1,31 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
-import { Plus, Search, Filter, MoreHorizontal, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, ChevronRight, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { patientsAPI } from '../../services/patients';
+import { PatientProfile } from '../../types';
 
 const PatientsPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [patients, setPatients] = useState<PatientProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock Patient Data with Enhanced Fields
-  const patients = [
-    { id: 1, name: 'Sarah Connor', age: 42, email: 'sarah@skynet.com', status: 'Stable', adherence: 95, activeMeds: 3, lastVisit: 'Oct 24, 2023', photo: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-    { id: 2, name: 'John Wick', age: 55, email: 'john@continental.com', status: 'Needs Attention', adherence: 60, activeMeds: 5, lastVisit: 'Nov 12, 2023', photo: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-    { id: 3, name: 'Ellen Ripley', age: 38, email: 'ripley@weyland.corp', status: 'Low Adherence', adherence: 45, activeMeds: 2, lastVisit: 'Aug 15, 2023', photo: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Ripley' },
-    { id: 4, name: 'Tony Stark', age: 48, email: 'tony@stark.inc', status: 'Stable', adherence: 98, activeMeds: 8, lastVisit: 'Dec 01, 2023', photo: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tony' },
-  ];
+  // Fetch patients on component mount
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await patientsAPI.getAllPatients();
+      
+      // Add mock data for adherence and active meds
+      const patientsWithMockData = data.map(patient => ({
+        ...patient,
+        adherence: Math.floor(Math.random() * 40) + 45, // Random adherence 45-85%
+        active_meds: [
+          'Lisinopril 10mg',
+          'Metformin 500mg',
+          'Atorvastatin 20mg',
+          'Amlodipine 5mg',
+          'Omeprazole 20mg'
+        ].sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 3) + 1) // 1-3 random meds
+      }));
+      
+      setPatients(patientsWithMockData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch patients');
+      console.error('Error fetching patients:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'Stable': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'Needs Attention': return 'bg-amber-50 text-amber-700 border-amber-100';
-      case 'Low Adherence': return 'bg-red-50 text-red-700 border-red-100';
+      case 'stable': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'critical': return 'bg-red-50 text-red-700 border-red-100';
+      case 'under_observation': return 'bg-amber-50 text-amber-700 border-amber-100';
       default: return 'bg-slate-50 text-slate-700';
     }
   };
 
-  const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // const getAdherenceColor = (adherence: number) => {
+  //   if (adherence >= 80) return 'text-emerald-600'; // Green for high adherence
+  //   if (adherence < 60) return 'text-red-600'; // Red for low adherence
+  //   return 'text-amber-600'; // Yellow/Orange for medium adherence
+  // };
+
+  // const getAdherenceBarColor = (adherence: number) => {
+  //   if (adherence >= 80) return 'bg-emerald-500'; // Green for high adherence
+  //   if (adherence < 60) return 'bg-red-500'; // Red for low adherence
+  //   return 'bg-amber-500'; // Yellow/Orange for medium adherence
+  // };
+
+  const getStatusDisplay = (status: string) => {
+    switch(status) {
+      case 'stable': return 'Stable';
+      case 'critical': return 'Critical';
+      case 'under_observation': return 'Under Observation';
+      default: return status;
+    }
+  };
+
+  const calculateAge = (dateOfBirth: string | undefined) => {
+    if (!dateOfBirth) return 'N/A';
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getPatientPhoto = (patient: PatientProfile) => {
+    // Use user initials as fallback for avatar
+    const initials = patient.user?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || '??';
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${patient.user?.full_name || patient.id}`;
+  };
+
+  // Filter patients based on search term and status filter
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = !searchTerm ||
+      patient.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.user?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = !statusFilter || patient.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Patients Management</h1>
+            <p className="text-slate-500">Loading patient records...</p>
+          </div>
+        </div>
+        <Card className="p-8 text-center">
+          <Loader2 size={48} className="animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-slate-600">Loading patients...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-fadeIn">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Patients Management</h1>
+            <p className="text-slate-500">Error loading patient records</p>
+          </div>
+        </div>
+        <Card className="p-8 text-center">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={fetchPatients}>Try Again</Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -42,50 +156,56 @@ const PatientsPage = () => {
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 bg-slate-50/50">
             <div className="relative flex-1">
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                    type="text" 
-                    placeholder="Search patients by name..." 
+                <input
+                    type="text"
+                    placeholder="Search patients by name or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 shadow-sm"
                 />
             </div>
-            <Button variant="secondary" className="px-4 bg-white shadow-sm" icon={<Filter size={18} />}>Filter</Button>
+            <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 shadow-sm"
+            >
+                <option value="">All Status</option>
+                <option value="stable">Stable</option>
+                <option value="under_observation">Under Observation</option>
+                <option value="critical">Critical</option>
+            </select>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <th className="px-6 py-4">Patient</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Adherence</th>
-                <th className="px-6 py-4">Active Meds</th>
-                <th className="px-6 py-4">Last Visit</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Patient</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Adherence</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Active Meds</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredPatients.map((patient) => (
-                <tr 
-                    key={patient.id} 
-                    className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
-                    onClick={() => navigate(`/patients/${patient.id}`)}
-                >
+                <tr key={patient.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)}>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
-                        <img src={patient.photo} alt={patient.name} className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100" />
-                        <div>
-                            <span className="font-bold text-slate-900 block">{patient.name}</span>
-                            <span className="text-xs text-slate-500">{patient.age} yrs • {patient.email}</span>
-                        </div>
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <img src={getPatientPhoto(patient)} alt={patient.user?.full_name} className="w-10 h-10 rounded-full border border-slate-200 bg-slate-100" />
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-slate-900">{patient.user?.full_name}</div>
+                        <div className="text-sm text-slate-500">{patient.user?.email} • {calculateAge(patient.date_of_birth)} yrs</div>
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusColor(patient.status)}`}>
-                      {patient.status === 'Stable' ? <CheckCircle size={12} className="mr-1.5"/> : <AlertCircle size={12} className="mr-1.5"/>}
-                      {patient.status}
+                      {patient.status === 'stable' ? <CheckCircle size={12} className="mr-1.5"/> : <AlertCircle size={12} className="mr-1.5"/>}
+                      {getStatusDisplay(patient.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -100,11 +220,10 @@ const PatientsPage = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                     <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{patient.activeMeds} Meds</span>
+                    <span className="text-sm font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-md">{(patient.active_meds || []).length} meds</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{patient.lastVisit}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-2 hover:bg-blue-100 rounded-full text-slate-400 hover:text-blue-600 transition-colors">
+                    <button className="p-2 hover:bg-blue-100 rounded-full text-slate-400 hover:text-blue-600 transition-colors" onClick={(e) => { e.stopPropagation(); navigate(`/patients/${patient.id}`); }}>
                         <ChevronRight size={20} />
                     </button>
                   </td>
@@ -114,7 +233,7 @@ const PatientsPage = () => {
           </table>
         </div>
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-sm text-slate-500">
-            <span>Showing {filteredPatients.length} patients</span>
+            <span>Showing {filteredPatients.length} of {patients.length} patients</span>
             <div className="flex gap-2">
                 <Button variant="secondary" className="py-1.5 px-3 text-xs" disabled>Previous</Button>
                 <Button variant="secondary" className="py-1.5 px-3 text-xs" disabled>Next</Button>
