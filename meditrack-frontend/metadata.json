@@ -1,0 +1,5 @@
+{
+  "name": "MediTrack AI",
+  "description": "A comprehensive healthcare management dashboard for patients and administrators featuring role-based access, appointment tracking, and patient analytics.",
+  "requestFramePermissions": []
+}
