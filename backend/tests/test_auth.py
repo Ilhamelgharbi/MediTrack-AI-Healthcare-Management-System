@@ -202,14 +202,23 @@ class TestAuthentication:
     
     def test_full_authentication_flow(self):
         """Test complete authentication flow: register -> login -> get user info."""
+        # Use unique test data to avoid conflicts with other tests
+        unique_user_data = {
+            "full_name": "Test Flow User",
+            "email": "test.flow@example.com",
+            "phone": "+1234567890",
+            "password": "securepassword123",
+            "role": "patient"
+        }
+        
         # 1. Register
-        register_response = client.post("/auth/register", json=test_user_data)
+        register_response = client.post("/auth/register", json=unique_user_data)
         assert register_response.status_code == 201
         
         # 2. Login
         login_data = {
-            "username": test_user_data["email"],
-            "password": test_user_data["password"]
+            "username": unique_user_data["email"],
+            "password": unique_user_data["password"]
         }
         login_response = client.post("/auth/login", data=login_data)
         assert login_response.status_code == 200
@@ -221,8 +230,8 @@ class TestAuthentication:
         assert me_response.status_code == 200
         
         user_data = me_response.json()
-        assert user_data["email"] == test_user_data["email"]
-        assert user_data["full_name"] == test_user_data["full_name"]
+        assert user_data["email"] == unique_user_data["email"]
+        assert user_data["full_name"] == unique_user_data["full_name"]
         assert user_data["role"] == "patient"
 
 

@@ -1,0 +1,4 @@
+# Minimal gitignore for frontend - pushing all files as requested
+# Only ignore OS-specific files
+.DS_Store
+Thumbs.db

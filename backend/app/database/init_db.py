@@ -3,6 +3,9 @@
 from app.database.db import Base, engine
 from app.auth.models import User  # import all models so Base.metadata can see them
 from app.patients.models import Patient  # import patient model
+from app.medications.models import Medication, PatientMedication, InactiveMedication  # import medication models
+from app.adherence.models import MedicationLog, AdherenceStats, AdherenceGoal  # import adherence models
+from app.reminders.models import Reminder, ReminderSchedule  # import reminder models
 from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.auth.utils import hash_password
