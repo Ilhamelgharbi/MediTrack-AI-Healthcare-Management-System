@@ -37,7 +37,7 @@ const AdherenceIndicator: React.FC<AdherenceIndicatorProps> = ({
       </div>
       {showPercentage && (
         <span className={`text-sm font-semibold ${getAdherenceColor(adherence)}`}>
-          {adherence}%
+          {Math.round(adherence)}%
         </span>
       )}
     </div>

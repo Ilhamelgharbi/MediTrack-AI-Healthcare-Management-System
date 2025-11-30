@@ -8,6 +8,7 @@ interface StatCardProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   color: string;
   trend?: string;
+  subtitle?: string;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon: Icon,
   color,
   trend,
+  subtitle,
   className = ''
 }) => {
   return (
@@ -28,6 +30,9 @@ export const StatCard: React.FC<StatCardProps> = ({
         <div>
           <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
           <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
+          {subtitle && (
+            <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
+          )}
           {trend && (
             <span className="inline-block mt-2 text-xs font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
               {trend}

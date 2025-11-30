@@ -9,6 +9,7 @@ import {
   Clock,
   User,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen }) => {
     { path: "/admin/patients", icon: Users, label: "Patients" },
     { path: "/admin/medications", icon: Pill, label: "Medications" },
     { path: "/admin/adherence", icon: TrendingUp, label: "Adherence" },
+    { path: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { path: "/admin/profile", icon: User, label: "Profile" },
   ];
 
@@ -81,14 +83,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen }) => {
       </nav>
 
       {/* User / Logout */}
-      <div className="absolute bottom-0 w-full p-4 border-t border-white/10 bg-[#152338]">
-        <button
-          onClick={logout}
-          className="flex items-center gap-4 px-4 py-3 w-full rounded-lg text-red-400 hover:bg-red-500/10 transition-all duration-200"
-        >
-          <LogOut size={20} />
-          {sidebarOpen && <span className="font-medium">Logout</span>}
-        </button>
+      <div className="absolute bottom-0 w-full border-t border-white/10 bg-[#152338]">
+        <div className="p-4">
+          <button
+            onClick={logout}
+            className="flex items-center gap-4 px-4 py-3 w-full rounded-lg text-red-400 hover:bg-red-500/10 transition-all duration-200"
+          >
+            <LogOut size={20} />
+            {sidebarOpen && <span className="font-medium">Logout</span>}
+          </button>
+        </div>
       </div>
     </aside>
   );

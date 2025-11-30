@@ -79,7 +79,7 @@ export const PatientProfileHeader: React.FC<PatientProfileHeaderProps> = ({
           )}
           {patient.adherence && (
             <span className={`flex items-center gap-1 ${getAdherenceColor(patient.adherence)}`}>
-              <CheckCircle size={14} /> {patient.adherence}% Adherence
+              <CheckCircle size={14} /> {Math.round(patient.adherence)}% Adherence
             </span>
           )}
         </div>

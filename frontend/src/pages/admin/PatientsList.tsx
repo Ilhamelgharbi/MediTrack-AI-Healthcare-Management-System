@@ -4,8 +4,8 @@ import { Button } from '../../components/common/Button';
 import { Plus, Search, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { patientsAPI } from '../../services/patient.service';
-import { medicationService } from '../../services/medications.service';
 import { adherenceService } from '../../services/adherence.service';
+import { medicationService } from '../../services/medications.service';
 import type { PatientProfile } from '../../types/patient.types';
 import { DashboardLoadingModal, DashboardErrorModal } from '../../components/common';
 import { PatientAvatar, StatusBadge, AdherenceIndicator, AgeDisplay } from '@/components/patient';
@@ -33,17 +33,6 @@ const PatientsPage = () => {
       const patientsWithData = await Promise.all(
         data.map(async (patient: PatientProfile) => {
           try {
-            // Fetch active medications for this patient
-            const medications = await medicationService.getPatientMedications(patient.user_id, {
-              status: 'active',
-              limit: 10
-            });
-
-            // Extract medication names with dosages
-            const activeMeds = medications.map(med =>
-              `${med.medication?.name || 'Unknown'} ${med.dosage}`
-            );
-
             // Fetch adherence stats for this patient
             let adherence = 0;
             try {
@@ -54,18 +43,28 @@ const PatientsPage = () => {
               // Keep default adherence of 0 if fetch fails
             }
 
+            // Fetch active medication count for this patient
+            let medicationCount = 0;
+            try {
+              const medications = await medicationService.getPatientMedications(patient.user_id);
+              medicationCount = medications.filter(med => med.status === 'active').length;
+            } catch (medError) {
+              console.warn(`Failed to fetch medications for patient ${patient.id}:`, medError);
+              // Keep default medication count of 0 if fetch fails
+            }
+
             return {
               ...patient,
               adherence,
-              active_meds: activeMeds
+              medicationCount
             };
-          } catch (medError) {
-            console.warn(`Failed to fetch data for patient ${patient.id}:`, medError);
+          } catch (error) {
+            console.warn(`Failed to fetch data for patient ${patient.id}:`, error);
             // Return patient with default values if fetch fails
             return {
               ...patient,
               adherence: 0,
-              active_meds: []
+              medicationCount: 0
             };
           }
         })
@@ -140,9 +139,9 @@ const PatientsPage = () => {
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600 uppercase tracking-wider">Patient</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600 uppercase tracking-wider">Medications</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600 uppercase tracking-wider">Adherence</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-600 uppercase tracking-wider">Active Meds</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -159,31 +158,13 @@ const PatientsPage = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <span className="text-sm font-medium text-slate-900">{patient.medicationCount || 0}</span>
+                  </td>
+                  <td className="px-6 py-4">
                     <StatusBadge status={patient.status} />
                   </td>
                   <td className="px-6 py-4">
                     <AdherenceIndicator adherence={patient.adherence || 0} size="sm" />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      {patient.active_meds && patient.active_meds.length > 0 ? (
-                        <>
-                          <span className="text-sm font-medium text-slate-700">{patient.active_meds.length} active</span>
-                          <div className="flex flex-wrap gap-1">
-                            {patient.active_meds.slice(0, 2).map((med, index) => (
-                              <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                {med}
-                              </span>
-                            ))}
-                            {patient.active_meds.length > 2 && (
-                              <span className="text-xs text-slate-500">+{patient.active_meds.length - 2} more</span>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-sm text-slate-400">No active meds</span>
-                      )}
-                    </div>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button className="p-2 hover:bg-blue-100 rounded-full text-slate-400 hover:text-blue-600 transition-colors" onClick={(e) => { e.stopPropagation(); navigate(`/patients/${patient.id}`); }}>

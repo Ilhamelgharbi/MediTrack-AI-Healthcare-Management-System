@@ -19,6 +19,8 @@ import AdminProfile from './pages/admin/Profile';
 import PatientsList from './pages/admin/PatientsList';
 import Medications from './pages/admin/Medications';
 import { AdminAdherenceDashboard } from './pages/admin/AdherenceDashboard';
+import { PatientAdherenceDetails } from './pages/admin/PatientAdherenceDetails';
+import { AdminAnalyticsDashboard } from './pages/admin/AdminAnalyticsDashboard';
 
 function App() {
   return (
@@ -137,6 +139,26 @@ function App() {
               <ProtectedRoute allowedRoles={['admin']}>
                 <DashboardLayout>
                   <AdminAdherenceDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <AdminAnalyticsDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/adherence/:patientId"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DashboardLayout>
+                  <PatientAdherenceDetails />
                 </DashboardLayout>
               </ProtectedRoute>
             }

@@ -53,13 +53,13 @@ const PatientDetailsPage = () => {
         }
 
         // Remove mock active meds - will be fetched from real API
-        const mockAdherence = Math.floor(Math.random() * 40) + 60;
+        // Remove mock adherence - real adherence will be fetched by PatientProfileTabs component
 
         // Create properly typed patient object
         const enhancedPatient: PatientProfile = {
-          ...patientData,
-          adherence: mockAdherence
+          ...patientData
           // Remove active_meds - this will be handled by the medication management component
+          // Remove adherence - real adherence will be fetched by PatientProfileTabs
         };
 
         setPatient(enhancedPatient);

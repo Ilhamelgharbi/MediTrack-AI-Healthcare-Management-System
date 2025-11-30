@@ -1,5 +1,5 @@
-// src/pages/admin/AdherenceDashboard.tsx
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import {
@@ -22,6 +22,7 @@ interface PatientOverview {
 }
 
 export const AdminAdherenceDashboard = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<PatientOverview[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<PatientOverview | null>(null);
   const [patientDashboard, setPatientDashboard] = useState<AdherenceDashboard | null>(null);
@@ -372,6 +373,17 @@ export const AdminAdherenceDashboard = () => {
                 </p>
               </div>
             </div>
+
+            {selectedPatient && (
+              <div className="mb-4">
+                <Button
+                  onClick={() => navigate(`/admin/adherence/${selectedPatient.id}`)}
+                  className="w-full bg-primary-600 hover:bg-primary-700"
+                >
+                  View Detailed Adherence Analysis
+                </Button>
+              </div>
+            )}
 
             {patientLoading ? (
               <div className="flex items-center justify-center h-64">

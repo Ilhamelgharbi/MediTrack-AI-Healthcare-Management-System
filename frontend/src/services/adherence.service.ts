@@ -17,6 +17,9 @@ export interface MedicationLog {
   reminder_id?: number;
   created_at: string;
   updated_at?: string;
+  medication_name?: string;
+  dosage?: string;
+  medication_form?: string;
 }
 
 export interface AdherenceStats {
@@ -51,6 +54,52 @@ export interface AdherenceDashboard {
   daily_stats: AdherenceStats;
   chart_data: AdherenceChartData[];
   recent_logs: MedicationLog[];
+}
+
+export interface AnalyticsOverview {
+  total_patients: number;
+  total_medications: number;
+  average_adherence: number;
+  total_doses_today: number;
+}
+
+export interface AdherenceTrend {
+  date: string;
+  adherence_rate: number;
+  doses_scheduled: number;
+  doses_taken: number;
+}
+
+export interface PatientAdherenceSummary {
+  patient_id: number;
+  patient_name: string;
+  adherence_rate: number;
+  total_medications: number;
+}
+
+export interface MedicationAdherenceDetail {
+  medication_id: number;
+  medication_name: string;
+  adherence_rate: number;
+  total_patients: number;
+  total_doses: number;
+  doses_taken: number;
+}
+
+export interface PatientDemographics {
+  total_patients: number;
+  age_distribution: { [key: string]: number };
+  gender_distribution: { [key: string]: number };
+  average_age: number;
+}
+
+export interface MedicationUsageStats {
+  medication_id: number;
+  medication_name: string;
+  total_patients: number;
+  total_prescriptions: number;
+  average_adherence: number;
+  usage_trend: { date: string; count: number }[];
 }
 
 export const adherenceService = {
@@ -135,9 +184,15 @@ export const adherenceService = {
   // Get adherence stats for a specific patient (admin only)
   getPatientAdherenceStats: async (
     patientId: number,
-    period: 'daily' | 'weekly' | 'monthly' | 'overall' = 'weekly'
+    period: 'daily' | 'weekly' | 'monthly' | 'overall' = 'weekly',
+    patientMedicationId?: number
   ): Promise<AdherenceStats> => {
-    const response = await api.get<AdherenceStats>(`/adherence/patients/${patientId}/stats?period=${period}`);
+    const query = new URLSearchParams();
+    query.append('period', period);
+    if (patientMedicationId) {
+      query.append('patient_medication_id', patientMedicationId.toString());
+    }
+    const response = await api.get<AdherenceStats>(`/adherence/patients/${patientId}/stats?${query}`);
     return response.data;
   },
 
@@ -168,6 +223,40 @@ export const adherenceService = {
     if (params?.limit) query.append('limit', params.limit.toString());
 
     const response = await api.get<MedicationLog[]>(`/adherence/patients/${patientId}/logs?${query}`);
+    return response.data;
+  },
+
+  // Analytics methods
+  getAnalyticsOverview: async (startDate?: string, endDate?: string): Promise<AnalyticsOverview> => {
+    const query = new URLSearchParams();
+    if (startDate) query.append('start_date', startDate);
+    if (endDate) query.append('end_date', endDate);
+    const response = await api.get<{overview: AnalyticsOverview}>(`/analytics/adherence/dashboard?${query}`);
+    return response.data.overview;
+  },
+
+  getAdherenceTrends: async (days: number = 30): Promise<AdherenceTrend[]> => {
+    const response = await api.get<AdherenceTrend[]>(`/analytics/adherence/trends?days=${days}`);
+    return response.data;
+  },
+
+  getPatientAdherenceSummaries: async (days: number = 30): Promise<PatientAdherenceSummary[]> => {
+    const response = await api.get<PatientAdherenceSummary[]>(`/analytics/adherence/patients?days=${days}`);
+    return response.data;
+  },
+
+  getMedicationAdherenceDetails: async (days: number = 30): Promise<MedicationAdherenceDetail[]> => {
+    const response = await api.get<MedicationAdherenceDetail[]>(`/analytics/adherence/medications?days=${days}`);
+    return response.data;
+  },
+
+  getPatientDemographics: async (): Promise<PatientDemographics> => {
+    const response = await api.get<PatientDemographics>('/analytics/patients/demographics');
+    return response.data;
+  },
+
+  getMedicationUsageStats: async (): Promise<MedicationUsageStats[]> => {
+    const response = await api.get<MedicationUsageStats[]>('/analytics/medications/usage-stats');
     return response.data;
   },
 };

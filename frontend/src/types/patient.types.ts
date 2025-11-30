@@ -28,6 +28,7 @@ export interface PatientProfile {
   user?: User;
   // Optional fields for UI
   adherence?: number;
+  medicationCount?: number;
   active_meds?: string[];
 }
 

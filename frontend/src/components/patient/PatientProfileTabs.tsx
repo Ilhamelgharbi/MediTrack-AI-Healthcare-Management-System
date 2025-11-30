@@ -8,9 +8,11 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { PatientProfile } from '../../types/patient.types';
 import { StatusBadge } from '../patient';
 import { PatientProfileHeader, type PatientHeaderData } from '../shared/PatientProfileHeader';
-import { PatientMedicationManagement } from '../medications';
 import { medicationService } from '../../services/medications.service';
+import { adherenceService } from '../../services/adherence.service';
 import type { PatientMedicationDetailed } from '../../types/medications.types';
+import type { AdherenceStats } from '../../services/adherence.service';
+import { PatientMedicationManagement } from '../medications/PatientMedicationManagement';
 
 interface PatientProfileTabsProps {
   patient: PatientProfile;
@@ -47,6 +49,10 @@ export const PatientProfileTabs = ({
     if (tab === 'medications' && userRole === 'admin') {
       fetchPatientMedications();
     }
+    // Fetch adherence data when switching to analytics tab
+    if (tab === 'analytics' && userRole === 'admin') {
+      fetchPatientAdherenceData();
+    }
   };
 
   // Medication state for overview tab
@@ -54,19 +60,30 @@ export const PatientProfileTabs = ({
   const [medicationsLoading, setMedicationsLoading] = useState(false);
   const [medicationsError, setMedicationsError] = useState<string | null>(null);
 
-  // Fetch medications when component mounts or patient changes
+  // Adherence state for analytics tab
+  const [adherenceData, setAdherenceData] = useState<any[]>([]);
+  const [adherenceStats, setAdherenceStats] = useState<any>(null);
+  const [adherenceLoading, setAdherenceLoading] = useState(false);
+  const [adherenceError, setAdherenceError] = useState<string | null>(null);
+
+  // Fetch medications and adherence data when component mounts or patient changes
   useEffect(() => {
-    if (userRole === 'admin') {
-      fetchPatientMedications();
-    }
+    // Fetch medications for both patients and admins since it's shown in profile
+    fetchPatientMedications();
+    // Fetch adherence data for both patients and admins since it's shown in profile
+    fetchPatientAdherenceData();
   }, [patient.user_id, userRole]);
 
   const fetchPatientMedications = async () => {
     try {
       setMedicationsLoading(true);
       setMedicationsError(null);
-      const data = await medicationService.getPatientMedications(patient.user_id);
-      setMedications(data);
+
+      const medicationData = await medicationService.getPatientMedications(patient.user_id, {
+        limit: 50,
+        include_inactive: false
+      });
+      setMedications(medicationData);
     } catch (err) {
       setMedicationsError(err instanceof Error ? err.message : 'Failed to fetch medications');
       console.error('Error fetching medications:', err);
@@ -75,16 +92,43 @@ export const PatientProfileTabs = ({
     }
   };
 
-  // Mock data for analytics
-  const adherenceData = [
-    { day: 'Mon', score: 90, missed: 0 },
-    { day: 'Tue', score: 100, missed: 0 },
-    { day: 'Wed', score: 80, missed: 1 },
-    { day: 'Thu', score: 100, missed: 0 },
-    { day: 'Fri', score: 70, missed: 1 },
-    { day: 'Sat', score: 100, missed: 0 },
-    { day: 'Sun', score: 100, missed: 0 },
-  ];
+  const fetchPatientAdherenceData = async () => {
+    try {
+      setAdherenceLoading(true);
+      setAdherenceError(null);
+
+      let stats: AdherenceStats;
+
+      if (userRole === 'patient') {
+        // For patients viewing their own profile, use the patient endpoint
+        stats = await adherenceService.getStats('weekly');
+      } else {
+        // For admins viewing patient profiles, use the admin endpoint
+        stats = await adherenceService.getPatientAdherenceStats(patient.user_id, 'weekly');
+      }
+
+      setAdherenceStats(stats);
+
+      // Also fetch chart data for analytics tab (only for admins)
+      if (userRole === 'admin') {
+        const dashboardData = await adherenceService.getPatientDashboard(patient.user_id);
+
+        // Transform chart data for the chart component
+        const transformedData = dashboardData.chart_data.map((item: any) => ({
+          day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
+          score: item.score,
+          missed: item.scheduled - item.taken
+        }));
+        setAdherenceData(transformedData);
+      }
+
+    } catch (err) {
+      setAdherenceError(err instanceof Error ? err.message : 'Failed to fetch adherence data');
+      console.error('Error fetching adherence data:', err);
+    } finally {
+      setAdherenceLoading(false);
+    }
+  };
 
   // Determine available tabs based on user role
   const availableTabs = userRole === 'admin'
@@ -100,7 +144,7 @@ export const PatientProfileTabs = ({
     weight: patient.weight,
     height: patient.height,
     bloodType: patient.blood_type,
-    adherence: patient.adherence,
+    adherence: adherenceStats?.adherence_score || patient.adherence || 0,
     status: patient.status,
     role: userRole
   };
@@ -462,40 +506,68 @@ export const PatientProfileTabs = ({
         <div className="animate-fadeIn">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Adherence Analytics">
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={adherenceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="score"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
-                      fillOpacity={0.3}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              {adherenceLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : adherenceError ? (
+                <div className="flex justify-center items-center h-64 text-red-600">
+                  Error loading adherence data: {adherenceError}
+                </div>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={adherenceData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="day" />
+                      <YAxis />
+                      <Tooltip />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        stroke="#3b82f6"
+                        fill="#3b82f6"
+                        fillOpacity={0.3}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
 
             <Card title="Weekly Summary">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Average Adherence</span>
-                  <span className="font-bold text-slate-900">91%</span>
+              {adherenceLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Total Missed Doses</span>
-                  <span className="font-bold text-slate-900">2</span>
+              ) : adherenceError ? (
+                <div className="flex justify-center items-center h-64 text-red-600">
+                  Error loading adherence stats: {adherenceError}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Current Streak</span>
-                  <span className="font-bold text-green-600">5 days</span>
+              ) : adherenceStats ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Average Adherence</span>
+                    <span className="font-bold text-slate-900">{Math.round(adherenceStats.adherence_score)}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Total Missed Doses</span>
+                    <span className="font-bold text-slate-900">{adherenceStats.total_missed}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Current Streak</span>
+                    <span className="font-bold text-green-600">{adherenceStats.current_streak} days</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600">Total Doses</span>
+                    <span className="font-bold text-slate-900">{adherenceStats.total_scheduled}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex justify-center items-center h-64 text-slate-500">
+                  No adherence data available
+                </div>
+              )}
             </Card>
           </div>
         </div>

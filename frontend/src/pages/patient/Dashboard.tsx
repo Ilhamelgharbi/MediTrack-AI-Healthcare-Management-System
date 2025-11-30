@@ -6,16 +6,16 @@ import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { DashboardLoadingModal, DashboardErrorModal, StatCard } from '../../components/common';
 import {
-  Pill, Clock, CheckCircle, XCircle
+  Pill, Clock, CheckCircle, Target, Zap
 } from 'lucide-react';
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line
 } from 'recharts';
 import { medicationService } from '../../services/medications.service';
-import { patientService } from '../../services/patient.service';
 import type { PatientMedicationDetailed } from '../../types/medications.types';
-import type { AdherenceDashboard } from '../../types/adherence.types';
+import type { AdherenceDashboard } from '../../services/adherence.service';
+import { adherenceService } from '../../services/adherence.service';
 
 export const PatientDashboard = () => {
   const { user } = useAuth();
@@ -25,6 +25,8 @@ export const PatientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+
+  const [medicationStats, setMedicationStats] = useState<any[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -40,8 +42,24 @@ export const PatientDashboard = () => {
       setMedications(medicationData);
 
       // Fetch real adherence dashboard data
-      const dashboardData = await patientService.getAdherenceDashboard();
+      const dashboardData = await adherenceService.getDashboard();
       setDashboard(dashboardData);
+
+      // Fetch medication-specific stats for active medications
+      const activeMeds = medicationData.filter(m => m.status === 'active');
+      const medStats = [];
+      for (const medication of activeMeds.slice(0, 5)) { // Limit to 5 for dashboard
+        try {
+          const stats = await adherenceService.getStats('weekly', medication.id);
+          medStats.push({
+            medication: medication,
+            stats: stats
+          });
+        } catch (err) {
+          console.warn(`Could not fetch stats for medication ${medication.id}:`, err);
+        }
+      }
+      setMedicationStats(medStats);
     } catch (err: unknown) {
       console.error('Error fetching dashboard data:', err);
       const message = err instanceof Error ? err.message : 'Failed to load dashboard';
@@ -81,28 +99,42 @@ export const PatientDashboard = () => {
 
   const adherenceScore = dashboard?.weekly_stats.adherence_score || 0;
   const activeMeds = medications.filter(m => m.status === 'active').length;
-  const pendingMeds = medications.filter(m => m.status === 'pending').length;
-  const stoppedMeds = medications.filter(m => m.status === 'stopped').length;
 
-  // Stats for the overview
+  // Calculate overall adherence stats
+  const totalDoses = dashboard?.weekly_stats.total_scheduled || 0;
+  const takenDoses = dashboard?.weekly_stats.total_taken || 0;
+  const onTimeRate = dashboard?.weekly_stats.on_time_score || 0;
+
+  // Stats for the overview - include adherence metrics
   const stats = [
-    { title: 'Active Meds', value: activeMeds.toString(), icon: CheckCircle, color: 'emerald' },
-    { title: 'Pending', value: pendingMeds.toString(), icon: Clock, color: 'amber' },
-    { title: 'Stopped', value: stoppedMeds.toString(), icon: XCircle, color: 'slate' },
-    { title: 'Total', value: medications.length.toString(), icon: Pill, color: 'blue' },
+    { title: 'Active Meds', value: activeMeds.toString(), icon: CheckCircle, color: 'bg-emerald-500', subtitle: 'currently taking' },
+    { title: 'Weekly Adherence', value: `${adherenceScore.toFixed(0)}%`, icon: Target, color: 'bg-blue-500', subtitle: `${takenDoses}/${totalDoses} doses taken` },
+    { title: 'Current Streak', value: `${dashboard?.weekly_stats.current_streak || 0}`, icon: Zap, color: 'bg-purple-500', subtitle: 'days in a row' },
+    { title: 'On-Time Rate', value: `${onTimeRate.toFixed(0)}%`, icon: Clock, color: 'bg-green-500', subtitle: 'taken on schedule' },
   ];
 
   // Active medications for preview
   const activeMedications = medications
     .filter(m => m.status === 'active')
-    .map(m => ({
-      id: m.id,
-      medicationName: m.medication?.name || 'Unknown Medication',
-      dosage: m.dosage,
-      frequency: `${m.times_per_day}x daily`,
-      todayTaken: 0, // TODO: Calculate from schedule data
-      todayScheduled: m.times_per_day,
-    }));
+    .map(m => {
+      // Calculate today's taken doses from recent logs
+      const today = new Date().toDateString();
+      const todayLogs = dashboard?.recent_logs.filter(log =>
+        log.patient_medication_id === m.id &&
+        new Date(log.scheduled_time).toDateString() === today &&
+        log.status === 'taken'
+      ) || [];
+      const todayTaken = todayLogs.length;
+
+      return {
+        id: m.id,
+        medicationName: m.medication?.name || 'Unknown Medication',
+        dosage: m.dosage,
+        frequency: `${m.times_per_day}x daily`,
+        todayTaken: todayTaken,
+        todayScheduled: m.times_per_day,
+      };
+    });
 
   // Weekly data for trends chart
   const weeklyData = dashboard?.chart_data.map(item => ({
@@ -131,6 +163,7 @@ export const PatientDashboard = () => {
               value={stat.value}
               icon={stat.icon}
               color={stat.color}
+              subtitle={stat.subtitle}
             />
           ))}
         </div>
@@ -206,6 +239,14 @@ export const PatientDashboard = () => {
                 <span className="text-sm text-slate-600">This Week</span>
                 <span className="font-semibold text-slate-900">{adherenceScore.toFixed(0)}%</span>
               </div>
+              <div className="flex items-center justify-between text-sm text-slate-600">
+                <span>Current Streak</span>
+                <span>{dashboard?.weekly_stats.current_streak || 0} days</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-600">
+                <span>Best Streak</span>
+                <span>{dashboard?.weekly_stats.longest_streak || 0} days</span>
+              </div>
               <div className="w-full bg-slate-200 rounded-full h-3">
                 <div
                   className={`h-3 rounded-full transition-all duration-300 ${getScoreColor(adherenceScore).replace('text-', 'bg-')}`}
@@ -254,6 +295,46 @@ export const PatientDashboard = () => {
             </div>
           </Card>
         </div>
+
+        {/* Medication Adherence Overview */}
+        {medicationStats.length > 0 && (
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Medication Adherence</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/patient/adherence')}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                View Details
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {medicationStats.map(({ medication, stats }) => (
+                <div key={medication.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                      <Pill className="text-blue-600" size={16} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{medication.medication?.name}</p>
+                      <p className="text-sm text-slate-600">{medication.dosage}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold ${getScoreColor(stats.adherence_score)}`}>
+                      {stats.adherence_score.toFixed(0)}%
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {stats.total_taken}/{stats.total_scheduled}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
